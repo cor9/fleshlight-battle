@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLESHLIGHT BATTLE</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>FLESHLIGHT BATTLE</h1>
+
+        <div class="hero-text">
+            <p>A turn-based streaming battle for 2&ndash;4 guys.</p>
+            <p>Escalating rounds &mdash; slow, secured fucking, primal pounding, edging&hellip; then blow it on cam.</p>
+            <p class="muted">Masculine. Primal. Bonding. 🥵</p>
+        </div>
+
+        <!-- ============ SETUP SCREEN ============ -->
+        <div id="setupScreen" class="screen">
+            <!-- Cam Room Panel -->
+            <div class="panel cam-panel">
+                <h2>📹 Cam Room (1:1, fresh every battle)</h2>
+                <p class="muted">Create a brand-new Kosmi room for this battle — that keeps it private to you and your opponent(s). Paste the link below, then text it to them.</p>
+                <div class="cam-row">
+                    <a class="btn kosmi-btn" href="https://kosmi.io" target="_blank" rel="noopener">🎥 Create Fresh Kosmi Room ↗</a>
+                </div>
+                <div class="cam-row">
+                    <input type="url" id="camLinkInput" class="text-input" placeholder="Paste the fresh room link&hellip;">
+                    <button id="saveCamLinkBtn" class="btn small-btn">Link It</button>
+                </div>
+                <div id="camLinkDisplay" class="cam-link-display hidden">
+                    <span id="camLinkText"></span>
+                    <div class="cam-link-actions">
+                        <a id="openCamLink" class="btn small-btn" href="#" target="_blank" rel="noopener">Open</a>
+                        <button id="copyCamLinkBtn" class="btn small-btn">Copy</button>
+                        <button id="shareCamLinkBtn" class="btn small-btn">📤 Text It</button>
+                    </div>
+                </div>
+                <p class="tip">💡 Pro tip: inside the Kosmi room you can open THIS page with shared browsing so the game and the cams are on one screen.</p>
+            </div>
+
+            <!-- Player Setup -->
+            <div class="panel">
+                <h2>👥 Players</h2>
+                <p class="muted">2&ndash;4 players. Everyone needs a fleshlight/stroker and their cam on.</p>
+                <div id="playerInputs"></div>
+                <button id="addPlayerBtn" class="btn small-btn">+ Add Player</button>
+            </div>
+
+            <button id="startBattleBtn" class="btn main-btn">⚔️ Start Battle</button>
+        </div>
+
+        <!-- ============ BATTLE SCREEN ============ -->
+        <div id="battleScreen" class="screen hidden">
+            <div id="camBar" class="cam-bar hidden">
+                📹 <a id="camBarLink" href="#" target="_blank" rel="noopener">Cam Room</a>
+            </div>
+
+            <div id="roundBadge" class="round-badge">Round 1 of 6</div>
+            <h2 id="stepTitle" class="step-title"></h2>
+
+            <div class="panel instruction-panel">
+                <p id="stepInstruction"></p>
+                <p id="stepProof" class="muted"></p>
+            </div>
+
+            <div id="turnOrder" class="turn-order"></div>
+
+            <!-- Duration choice (round 3 only) -->
+            <div id="durationChoice" class="duration-choice hidden">
+                <button class="btn duration-btn" data-duration="30">30 sec</button>
+                <button class="btn duration-btn" data-duration="45">45 sec</button>
+            </div>
+
+            <!-- Ending picker (final round only) -->
+            <div id="endingPicker" class="ending-picker hidden"></div>
+
+            <!-- Timer -->
+            <div id="timerSection" class="timer-section hidden">
+                <div id="currentPlayerLabel" class="current-player"></div>
+                <div id="chosenEndingLabel" class="chosen-ending hidden"></div>
+                <div id="timerDisplay" class="timer-display">0:00</div>
+                <div class="timer-controls">
+                    <button id="startTimerBtn" class="btn timer-btn">▶ Start Turn</button>
+                    <button id="finishTurnBtn" class="btn timer-btn hidden">✅ Finish Turn</button>
+                </div>
+            </div>
+
+            <button id="quitBtn" class="btn back-btn">Quit Battle</button>
+        </div>
+
+        <!-- ============ COMPLETE SCREEN ============ -->
+        <div id="completeScreen" class="screen hidden">
+            <div class="trophy">🏆💦</div>
+            <h2>BATTLES COMPLETE</h2>
+            <div id="resultsList" class="panel results-list"></div>
+            <p class="muted">Well busted, bros. Same time next week?</p>
+            <button id="rematchBtn" class="btn main-btn">🔄 Rematch</button>
+            <button id="newBattleBtn" class="btn back-btn">New Players</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
