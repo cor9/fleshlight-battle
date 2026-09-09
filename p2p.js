@@ -14,9 +14,10 @@ const ICE_SERVERS = [
 ];
 
 class P2PRoom {
-    constructor({ prefix = "bg", maxVideoTiles = 6 } = {}) {
+    constructor({ prefix = "bg", maxVideoTiles = 6, maxPeers = Infinity } = {}) {
         this.prefix = prefix;
         this.maxVideoTiles = maxVideoTiles;
+        this.maxPeers = maxPeers;
 
         this.peer = null;
         this.me = null;            // { id, name }
@@ -29,6 +30,11 @@ class P2PRoom {
         this.conns = new Map();    // peerId -> DataConnection
         this.calls = new Map();    // peerId -> MediaConnection
 
+        // ---- host media-share (screen share / local file stream) ----
+        this.shareStream = null;
+        this.shareLabel = null;
+        this.shareCalls = new Map(); // peerId -> MediaConnection
+
         // ---- callbacks (set by the game) ----
         this.onRosterChange = () => {};
         this.onHostMessage = () => {};      // peers: messages FROM host
@@ -36,6 +42,8 @@ class P2PRoom {
         this.onAnyMessage = () => {};       // everyone: chat etc.
         this.onStream = () => {};           // (peerId, name, MediaStream)
         this.onStreamRemoved = () => {};    // (peerId)
+        this.onShareStream = () => {};      // (label, MediaStream) — peers: host started sharing
+        this.onShareRemoved = () => {};     // share ended
         this.onPeerGone = () => {};         // (peerId, name)
         this.onHostGone = () => {};
         this.onError = () => {};
@@ -99,6 +107,35 @@ class P2PRoom {
         return this._toggleTrack("video");
     }
 
+    /** Host: broadcast an extra stream (screen share or local media) to every peer */
+    startShare(stream, label) {
+        if (!this.isHost) return;
+        this.stopShare();
+        this.shareStream = stream;
+        this.shareLabel = label;
+        this.roster.forEach((p) => { if (p.id !== this.me.id) this._ensureShareCall(p.id); });
+        const vt = stream.getVideoTracks()[0];
+        if (vt) vt.addEventListener("ended", () => this.stopShare());
+    }
+
+    stopShare() {
+        this.shareCalls.forEach((c) => c.close());
+        this.shareCalls.clear();
+        if (this.shareStream) this.shareStream.getTracks().forEach((t) => t.stop());
+        this.shareStream = null;
+        this.shareLabel = null;
+    }
+
+    _ensureShareCall(peerId) {
+        if (!this.shareStream || this.shareCalls.has(peerId)) return;
+        const call = this.peer.call(peerId, this.shareStream, {
+            metadata: { kind: "share", label: this.shareLabel }
+        });
+        this.shareCalls.set(peerId, call);
+        call.on("close", () => this.shareCalls.delete(peerId));
+        call.on("error", () => this.shareCalls.delete(peerId));
+    }
+
     destroy() {
         try { this.conns.forEach((c) => c.close()); this.calls.forEach((c) => c.close()); } catch (_) {}
         if (this.localStream) this.localStream.getTracks().forEach((t) => t.stop());
@@ -152,6 +189,15 @@ class P2PRoom {
         // Incoming video call
         this.peer.on("call", (call) => {
             call.answer(this.localStream);
+
+            // Host media-share calls are flagged in metadata
+            if (call.metadata && call.metadata.kind === "share") {
+                call.on("stream", (remote) => this.onShareStream(call.metadata.label, remote));
+                call.on("close", () => this.onShareRemoved());
+                call.on("error", () => this.onShareRemoved());
+                return;
+            }
+
             call.on("stream", (remote) => {
                 const who = this._nameFor(call.peer);
                 this.calls.set(call.peer, call);
@@ -164,6 +210,16 @@ class P2PRoom {
 
     _wireConn(conn) {
         conn.on("open", () => {
+            // Room full? Politely bounce them (host only)
+            if (this.isHost && this.roster.length >= this.maxPeers &&
+                !this.roster.some((p) => p.id === conn.peer)) {
+                conn.on("open", () => {
+                    conn.send({ type: "__full" });
+                    setTimeout(() => conn.close(), 500);
+                });
+                return;
+            }
+
             this.conns.set(conn.peer, conn);
 
             // Host learns the peer's name from metadata and updates the roster
@@ -172,11 +228,17 @@ class P2PRoom {
                 this.roster.push({ id: conn.peer, name });
                 this._fanout({ type: "__roster", roster: this.roster });
                 this.onRosterChange(this.roster);
+                // Late joiner while host is sharing media → beam it to them too
+                this._ensureShareCall(conn.peer);
             }
         });
 
         conn.on("data", (msg) => {
             if (!msg || typeof msg !== "object") return;
+            if (msg.type === "__full") {
+                this.onError(new Error(`Lounge is full (${this.maxPeers} bros max). Try again later.`));
+                return;
+            }
             if (msg.type === "__roster" && !this.isHost) {
                 this.roster = msg.roster;
                 this.onRosterChange(this.roster);
