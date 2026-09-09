@@ -11,51 +11,54 @@
         <h1>FLESHLIGHT BATTLE</h1>
 
         <div class="hero-text">
-            <p>A turn-based streaming battle for 2&ndash;4 guys.</p>
-            <p>Escalating rounds &mdash; slow, secured fucking, primal pounding, edging&hellip; then blow it on cam.</p>
-            <p class="muted">Masculine. Primal. Bonding. 🥵</p>
+            <p>A turn-based cam battle for 2&ndash;4 guys.</p>
+            <p>Escalating rounds &mdash; slow, secured fucking, primal pounding, edging&hellip; then bust on cam.</p>
         </div>
 
-        <!-- ============ SETUP SCREEN ============ -->
-        <div id="setupScreen" class="screen">
-            <!-- Cam Room Panel -->
-            <div class="panel cam-panel">
-                <h2>📹 Cam Room (1:1, fresh every battle)</h2>
-                <p class="muted">Create a brand-new Kosmi room for this battle — that keeps it private to you and your opponent(s). Paste the link below, then text it to them.</p>
-                <div class="cam-row">
-                    <a class="btn kosmi-btn" href="https://kosmi.io" target="_blank" rel="noopener">🎥 Create Fresh Kosmi Room ↗</a>
-                </div>
-                <div class="cam-row">
-                    <input type="url" id="camLinkInput" class="text-input" placeholder="Paste the fresh room link&hellip;">
-                    <button id="saveCamLinkBtn" class="btn small-btn">Link It</button>
-                </div>
-                <div id="camLinkDisplay" class="cam-link-display hidden">
-                    <span id="camLinkText"></span>
-                    <div class="cam-link-actions">
-                        <a id="openCamLink" class="btn small-btn" href="#" target="_blank" rel="noopener">Open</a>
-                        <button id="copyCamLinkBtn" class="btn small-btn">Copy</button>
-                        <button id="shareCamLinkBtn" class="btn small-btn">📤 Text It</button>
-                    </div>
-                </div>
-                <p class="tip">💡 Pro tip: inside the Kosmi room you can open THIS page with shared browsing so the game and the cams are on one screen.</p>
-            </div>
-
-            <!-- Player Setup -->
+        <!-- ============ HOME SCREEN ============ -->
+        <div id="homeScreen" class="screen">
             <div class="panel">
-                <h2>👥 Players</h2>
-                <p class="muted">2&ndash;4 players. Everyone needs a fleshlight/stroker and their cam on.</p>
-                <div id="playerInputs"></div>
-                <button id="addPlayerBtn" class="btn small-btn">+ Add Player</button>
+                <h2>🎭 Your Name</h2>
+                <input type="text" id="nameInput" class="text-input name-input" placeholder="What do the bros call you?" maxlength="16">
+                <p id="camNote" class="tip">📹 You'll be asked for camera &amp; mic — streams go directly browser-to-browser, nothing is uploaded anywhere.</p>
             </div>
 
-            <button id="startBattleBtn" class="btn main-btn">⚔️ Start Battle</button>
+            <div class="home-actions">
+                <button id="hostBtn" class="btn main-btn">⚔️ Host a Battle</button>
+                <div class="join-row">
+                    <input type="text" id="joinCodeInput" class="text-input" placeholder="Room code" maxlength="6">
+                    <button id="joinBtn" class="btn main-btn">🚪 Join</button>
+                </div>
+                <p id="connectStatus" class="muted"></p>
+            </div>
+        </div>
+
+        <!-- ============ LOBBY SCREEN ============ -->
+        <div id="lobbyScreen" class="screen hidden">
+            <div class="panel share-panel">
+                <h2>🔗 Invite Your Opponent{plural}</h2>
+                <div class="share-row">
+                    <span id="shareLink" class="share-link"></span>
+                </div>
+                <div class="share-actions">
+                    <button id="copyLinkBtn" class="btn small-btn">Copy</button>
+                    <button id="textLinkBtn" class="btn small-btn">📤 Text It</button>
+                </div>
+                <p class="tip">They open the link, allow cam, and land right here in your lobby.</p>
+            </div>
+
+            <div id="videoGrid" class="video-grid"></div>
+
+            <div id="lobbyPlayers" class="turn-order"></div>
+
+            <button id="startBattleBtn" class="btn main-btn hidden">⚔️ Start Battle</button>
+            <p id="waitingHostNote" class="muted">Waiting for the host to start the battle…</p>
+            <button id="leaveLobbyBtn" class="btn back-btn">Leave</button>
         </div>
 
         <!-- ============ BATTLE SCREEN ============ -->
         <div id="battleScreen" class="screen hidden">
-            <div id="camBar" class="cam-bar hidden">
-                📹 <a id="camBarLink" href="#" target="_blank" rel="noopener">Cam Room</a>
-            </div>
+            <div id="videoGridBattle" class="video-grid"></div>
 
             <div id="roundBadge" class="round-badge">Round 1 of 6</div>
             <h2 id="stepTitle" class="step-title"></h2>
@@ -67,17 +70,14 @@
 
             <div id="turnOrder" class="turn-order"></div>
 
-            <!-- Duration choice (round 3 only) -->
             <div id="durationChoice" class="duration-choice hidden">
                 <button class="btn duration-btn" data-duration="30">30 sec</button>
                 <button class="btn duration-btn" data-duration="45">45 sec</button>
             </div>
 
-            <!-- Ending picker (final round only) -->
             <div id="endingPicker" class="ending-picker hidden"></div>
 
-            <!-- Timer -->
-            <div id="timerSection" class="timer-section hidden">
+            <div id="timerSection" class="timer-section">
                 <div id="currentPlayerLabel" class="current-player"></div>
                 <div id="chosenEndingLabel" class="chosen-ending hidden"></div>
                 <div id="timerDisplay" class="timer-display">0:00</div>
@@ -85,6 +85,7 @@
                     <button id="startTimerBtn" class="btn timer-btn">▶ Start Turn</button>
                     <button id="finishTurnBtn" class="btn timer-btn hidden">✅ Finish Turn</button>
                 </div>
+                <p id="waitingActorNote" class="muted hidden"></p>
             </div>
 
             <button id="quitBtn" class="btn back-btn">Quit Battle</button>
@@ -92,15 +93,27 @@
 
         <!-- ============ COMPLETE SCREEN ============ -->
         <div id="completeScreen" class="screen hidden">
+            <div id="videoGridComplete" class="video-grid"></div>
             <div class="trophy">🏆💦</div>
-            <h2>BATTLES COMPLETE</h2>
+            <h2>BATTLE COMPLETE</h2>
             <div id="resultsList" class="panel results-list"></div>
             <p class="muted">Well busted, bros. Same time next week?</p>
-            <button id="rematchBtn" class="btn main-btn">🔄 Rematch</button>
-            <button id="newBattleBtn" class="btn back-btn">New Players</button>
+            <button id="rematchBtn" class="btn main-btn hidden">🔄 Rematch</button>
+            <button id="backToLobbyBtn" class="btn back-btn">Back to Lobby</button>
         </div>
     </div>
 
+    <!-- Media controls -->
+    <div id="mediaBar" class="media-bar hidden">
+        <button id="toggleMicBtn" class="media-btn" title="Toggle mic">🎤</button>
+        <button id="toggleCamBtn" class="media-btn" title="Toggle camera">📷</button>
+    </div>
+
+    <!-- Chat mount point -->
+    <div id="chatRoot"></div>
+
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="p2p.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
