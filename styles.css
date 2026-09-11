@@ -600,3 +600,10 @@ h1 {
     box-shadow: 0 4px 12px rgba(0, 212, 255, 0.25);
     transform: translateY(-1px);
 }
+
+/* Media controls: top-center so overlays never bury them */
+.media-bar {
+    top: 14px;
+    bottom: auto;
+    z-index: 350;
+}
