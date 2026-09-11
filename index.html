@@ -21,6 +21,7 @@
             <div class="panel">
                 <h2>🎭 Your Name</h2>
                 <input type="text" id="nameInput" class="text-input name-input" placeholder="What do the bros call you?" maxlength="16">
+                <input type="text" id="passwordInput" class="text-input name-input" placeholder="Room password (blank = public + listed on hub)" maxlength="24">
                 <p id="camNote" class="tip">📹 You'll be asked for camera &amp; mic — streams go directly browser-to-browser, nothing is uploaded anywhere.</p>
             </div>
 
@@ -114,7 +115,9 @@
     <div id="chatRoot"></div>
 
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.js"></script>
     <script src="p2p.js"></script>
+    <script src="lk.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

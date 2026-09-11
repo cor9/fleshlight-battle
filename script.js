@@ -57,6 +57,7 @@ const STEPS = [
 /* ---------------- Room / game state ---------------- */
 
 let p2p = null;
+let lk = null; // LiveKit media layer (lk.js)
 let chat = null;
 
 // Host-authoritative game state (peers keep a copy of the snapshot)
@@ -114,14 +115,10 @@ function setActiveGrid() {
     if (!activeGrid) return;
     // Re-render all tiles into the active grid
     activeGrid.innerHTML = "";
-    addTile(me().id, me().name + " (you)", p2p.localStream, true);
-    p2p.roster.forEach((p) => {
-        if (p.id === me().id) return;
-        if (remoteStreams.has(p.id)) addTile(p.id, p.name, remoteStreams.get(p.id), false);
-    });
+    tiles.forEach((t, id) => addTile(id, t.name, t.stream, t.muted));
 }
 
-const remoteStreams = new Map(); // peerId -> MediaStream
+const tiles = new Map(); // identity -> { name, stream, muted }
 
 function addTile(peerId, label, stream, muted) {
     if (!activeGrid) return;
@@ -151,13 +148,8 @@ async function connect(asHost, code) {
     const name = $("nameInput").value.trim() || "Gooner " + Math.floor(Math.random() * 90 + 10);
     $("connectStatus").textContent = "Getting your cam ready…";
 
-    p2p = new P2PRoom({ prefix: ROOM_PREFIX });
-    p2p.onRosterChange = handleRosterChange;
-    p2p.onStream = (peerId, who, stream) => {
-        remoteStreams.set(peerId, stream);
-        addTile(peerId, who, stream, false);
-    };
-    p2p.onStreamRemoved = (peerId) => { remoteStreams.delete(peerId); removeTile(peerId); };
+        p2p = new P2PRoom({ prefix: ROOM_PREFIX, requireMedia: false }); // data channels only
+        p2p.onRosterChange = handleRosterChange;
     p2p.onPeerGone = handlePeerGone;
     p2p.onHostGone = () => {
         alert("The host left — battle over.");
@@ -177,9 +169,12 @@ async function connect(asHost, code) {
         if (asHost) {
             const link = await p2p.host(name);
             $("shareLink").textContent = link;
+            p2p.setRoomMeta({ title: "Fleshlight Battle", password: $("passwordInput").value.trim() });
+            await p2p.connectHub(me().name);
+            p2p.advertiseRoom();
         } else {
             $("connectStatus").textContent = "Joining room…";
-            await p2p.join(name, code);
+            await p2p.join(name, code, $("passwordInput").value.trim());
         }
     } catch (err) {
         $("connectStatus").textContent = "⚠️ " + (err.message || "Could not connect.");
@@ -194,6 +189,16 @@ async function connect(asHost, code) {
             chat.addMessage({ name: me().name, text, self: true });
         }
     });
+
+    // ---- LiveKit cams (media layer) ----
+    lk = new LKMedia();
+    lk.onTile = (id, label, stream, isLocal) => {
+        tiles.set(id, { name: label, stream, muted: isLocal });
+        addTile(id, label, stream, isLocal);
+    };
+    lk.onRemoveTile = (id) => { tiles.delete(id); removeTile(id); };
+    lk.onError = (err) => { $("connectStatus").textContent = "⚠️ " + err.message; };
+    await lk.connect(p2p.hostId, p2p.me.id, name);
 
     $("mediaBar").classList.remove("hidden");
     if (isHost()) $("startBattleBtn").classList.remove("hidden");
@@ -215,11 +220,11 @@ function handleRosterChange(roster) {
 }
 
 function refreshTilesForRoster() {
-    // drop tiles for peers no longer in roster
-    remoteStreams.forEach((_, peerId) => {
-        if (!p2p.roster.some((p) => p.id === peerId)) {
-            remoteStreams.delete(peerId);
-            removeTile(peerId);
+    // drop tiles for peers no longer in roster (LiveKit identity == p2p id)
+    tiles.forEach((_, id) => {
+        if (!p2p.roster.some((p) => p.id === id) && id !== (me() && me().id)) {
+            tiles.delete(id);
+            removeTile(id);
         }
     });
 }
@@ -643,12 +648,12 @@ function init() {
     });
 
     // Media toggles
-    $("toggleMicBtn").addEventListener("click", () => {
-        const on = p2p && p2p.toggleMic();
+    $("toggleMicBtn").addEventListener("click", async () => {
+        const on = lk ? await lk.toggleMic() : false;
         $("toggleMicBtn").classList.toggle("media-off", !on);
     });
-    $("toggleCamBtn").addEventListener("click", () => {
-        const on = p2p && p2p.toggleCam();
+    $("toggleCamBtn").addEventListener("click", async () => {
+        const on = lk ? await lk.toggleCam() : false;
         $("toggleCamBtn").classList.toggle("media-off", !on);
     });
 }
