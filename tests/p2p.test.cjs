@@ -73,3 +73,9 @@ test('hub member can take over after directory owner leaves',async()=>{
  try {await owner.connectHub('Owner');await visitor.connectHub('Visitor');assert.equal(visitor._hub.isHost,false);owner.destroy();await visitor.connectHub('Visitor');assert.equal(visitor._hub.isHost,true);}
  finally {owner.destroy();visitor.destroy();}
 });
+test('public beacons identify host and members without exposing password',async()=>{
+ const h=room(),g=room();try{await h.host('Host');await g.join('Guest',h.roomCode);await h.connectHub('Host');h.advertiseRoom();const beacon=[...h._hub._directory.values()][0];assert.equal(beacon.hostName,'Host');assert.equal(beacon.members.length,2);assert.equal(beacon.members[1].name,'Guest');assert.equal(beacon.password,undefined);}finally{g.destroy();h.destroy();}
+});
+test('private rooms do not publish members to the hub',async()=>{
+ const h=room();try{await h.host('Host');h.setRoomMeta({password:'private'});await h.connectHub('Host');h.advertiseRoom();assert.equal(h._hub._directory.size,0);}finally{h.destroy();}
+});
