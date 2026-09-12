@@ -148,7 +148,7 @@ async function connect(asHost, code) {
     const name = $("nameInput").value.trim() || "Gooner " + Math.floor(Math.random() * 90 + 10);
     $("connectStatus").textContent = "Getting your cam ready…";
 
-        p2p = new P2PRoom({ prefix: ROOM_PREFIX, requireMedia: false }); // data channels only
+        p2p = new P2PRoom({ prefix: ROOM_PREFIX, requireMedia: false, maxPeers: 5 }); // data channels only
         p2p.onRosterChange = handleRosterChange;
     p2p.onPeerGone = handlePeerGone;
     p2p.onHostGone = () => {
@@ -326,7 +326,10 @@ function hostHandleAction(peerId, name, msg) {
             const step = STEPS[game.stepIndex];
             const ending = step.endings.find((e) => e.letter === msg.letter);
             const player = game.players.find((p) => p.id === actor);
-            const taken = game.players.some((p) => p.ending && p.ending.letter === msg.letter);
+            // Endings stay unique while supply lasts; with 5 players the
+            // last spinner gets to repeat once all four are taken.
+            const takenBy = game.players.filter((p) => p.ending).length;
+            const taken = takenBy < 4 && game.players.some((p) => p.ending && p.ending.letter === msg.letter);
             if (ending && player && !taken) {
                 player.ending = ending;
                 broadcastState();
@@ -542,7 +545,8 @@ function renderEndingPicker() {
     const picker = $("endingPicker");
     picker.innerHTML = "";
     STEPS[game.stepIndex].endings.forEach((ending) => {
-        const taken = game.players.some((p) => p.ending && p.ending.letter === ending.letter);
+        const takenBy = game.players.filter((p) => p.ending).length;
+        const taken = takenBy < 4 && game.players.some((p) => p.ending && p.ending.letter === ending.letter);
         const btn = document.createElement("button");
         btn.className = "ending-btn";
         btn.disabled = taken || !actorIsMe();
