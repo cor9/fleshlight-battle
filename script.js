@@ -167,7 +167,7 @@ async function connect(asHost, code) {
 
     try {
         if (asHost) {
-            const link = await p2p.host(name);
+            const link = await p2p.host(name, (() => { const c = localStorage.getItem("batorRoom:" + ROOM_PREFIX); return c ? { code: c } : {}; })());
             $("shareLink").textContent = link;
             p2p.setRoomMeta({ title: "Fleshlight Battle", password: $("passwordInput").value.trim() });
             // hub directory connects in the background so it never blocks the room
@@ -627,7 +627,15 @@ function init() {
             try { await navigator.share({ title: "FLESHLIGHT BATTLE", text: "Loser breeds first — join my battle:", url }); return; } catch (_) {}
         }
         try { await navigator.clipboard.writeText(url); alert("Link copied — text it to your opponent!"); } catch (_) {}
-    });
+    
+
+    // Save this room as MY permanent link (device-local)
+    $("saveRoomBtn") && $("saveRoomBtn").addEventListener("click", () => {
+        localStorage.setItem("batorRoom:" + ROOM_PREFIX, p2p.roomCode);
+        $("saveRoomBtn").textContent = "🔖 Saved! This is YOUR link now";
+        $("saveRoomBtn").style.borderColor = "#3dff73";
+        setTimeout(() => { $("saveRoomBtn").textContent = "🔖 Permanent Link"; }, 2500);
+    });});
     $("startBattleBtn").addEventListener("click", () => {
         if (!p2p || p2p.roster.length < 1) return;
         hostStartBattle();
