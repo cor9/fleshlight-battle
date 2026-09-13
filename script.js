@@ -156,13 +156,9 @@ async function connect(asHost, code) {
         location.hash = "";
         location.reload();
     };
-    p2p.onHostMessage = handleHostMessage;         // peers
-    p2p.onPeerMessage = handlePeerAction;          // host receives actions
-    p2p.onAnyMessage = (peerId, msg) => {          // chat everywhere
-        if (msg && msg.type === "chat") {
-            chat.addMessage({ name: msg.name, text: msg.text, self: false });
-        }
-    };
+    p2p.onHostMessage = () => {};
+    p2p.onPeerMessage = () => {};
+    p2p.onAnyMessage = () => {};
     p2p.onError = (err) => { $("connectStatus").textContent = "⚠️ " + err.message; };
 
     try {
@@ -185,7 +181,7 @@ async function connect(asHost, code) {
     chat = mountChatUI($("chatRoot"), {
         selfName: name,
         onSend: (text) => {
-            p2p.sendAll({ type: "chat", name: me().name, text });
+            lk && lk.sendToAll({ type: 'chat', name: me().name, text });
             chat.addMessage({ name: me().name, text, self: true });
         }
     });
@@ -203,6 +199,21 @@ async function connect(asHost, code) {
     };
     lk.onRemoveTile = (id) => { tiles.delete(id); removeTile(id); };
     lk.onError = (err) => { $("connectStatus").textContent = "⚠️ " + err.message; };
+
+    // LiveKit data pipe: chat + host broadcasts <-> peer actions
+    lk.onData = (fromId, msg) => {
+        if (!msg || typeof msg !== "object" || !chat) return;
+        if (msg.type === "chat") {
+            chat.addMessage({ name: msg.name, text: msg.text, self: msg.name === (me() && me().name) });
+            return;
+        }
+        if (isHost()) {
+            handlePeerAction(fromId, (game.players.find((p) => p.id === fromId) || {}).name || "bro", msg);
+        } else {
+            handleHostMessage(msg);
+        }
+    };
+
     await lk.connect(p2p.hostId, p2p.me.id, name);
 
     $("mediaBar").classList.remove("hidden");
@@ -251,7 +262,7 @@ function handlePeerGone(peerId, name) {
 
 function broadcastState(extra = {}) {
     if (!isHost()) return;
-    p2p.hostBroadcast({ type: "state", game: sanitizeGame(), ...extra });
+    lk && lk.sendToAll({ type: "state", game: sanitizeGame(), ...extra });
 }
 
 function sanitizeGame() {
@@ -302,7 +313,7 @@ function doAction(op, data = {}) {
     if (isHost()) {
         hostHandleAction(me().id, me().name, { type: "action", op, ...data });
     } else {
-        p2p.sendToHost({ type: "action", op, ...data });
+        lk && lk.sendToAll({ type: "action", op, ...data });
     }
 }
 
@@ -365,7 +376,7 @@ function hostStartStep(index) {
 function hostStartTurn() {
     const step = STEPS[game.stepIndex];
     const duration = step.choices ? game.chosenDuration : step.duration;
-    p2p.hostBroadcast({
+    lk && lk.sendToAll({
         type: "timer", op: "start",
         duration: step.openEnded ? null : duration,
         openEnded: !!step.openEnded,
@@ -375,7 +386,7 @@ function hostStartTurn() {
 }
 
 function hostFinishTurn() {
-    p2p.hostBroadcast({ type: "timer", op: "stop" });
+    lk && lk.sendToAll({ type: "timer", op: "stop" });
     stopTimerDisplay();
     game.turnIndex++;
     if (game.turnIndex >= game.turnOrder.length) {
