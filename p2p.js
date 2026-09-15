@@ -80,7 +80,18 @@ class P2PRoom {
         this.roomCode = (options.code || this._randomCode()).toLowerCase();
         this.hostId = `${this.prefix}-${this.roomCode}`;
         this.peer = new Peer(this.hostId, { config: { iceServers: ICE_SERVERS } });
-        await this._waitOpen();
+        try {
+            await this._waitOpen();
+        } catch (err) {
+            // A saved permanent code may still belong to an old tab. Fall
+            // back to a fresh code instead of exposing a PeerJS ID collision.
+            if (err && err.type === "unavailable-id" && options.code) {
+                this.roomCode = this._randomCode();
+                this.hostId = `${this.prefix}-${this.roomCode}`;
+                this.peer = new Peer(this.hostId, { config: { iceServers: ICE_SERVERS } });
+                await this._waitOpen();
+            } else throw err;
+        }
         this.me = { id: this.hostId, name };
         this.roster = [this.me];
         this._wireCommon();
