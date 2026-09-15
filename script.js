@@ -59,6 +59,9 @@ const STEPS = [
 let p2p = null;
 let lk = null; // LiveKit media layer (lk.js)
 let chat = null;
+let myName = null;
+let lkConnected = false; // media only joins once 2+ people are actually here —
+                          // most sessions are one person alone in a lobby
 
 // Host-authoritative game state (peers keep a copy of the snapshot)
 const game = {
@@ -116,6 +119,7 @@ function setActiveGrid() {
     // Re-render all tiles into the active grid
     activeGrid.innerHTML = "";
     tiles.forEach((t, id) => addTile(id, t.name, t.stream, t.muted));
+    syncCamPlaceholder();
 }
 
 const tiles = new Map(); // identity -> { name, stream, muted }
@@ -146,7 +150,8 @@ function removeTile(peerId) {
 
 async function connect(asHost, code) {
     const name = $("nameInput").value.trim() || "Gooner " + Math.floor(Math.random() * 90 + 10);
-    $("connectStatus").textContent = "Getting your cam ready…";
+    myName = name;
+    $("connectStatus").textContent = "Connecting…";
 
         p2p = new P2PRoom({ prefix: ROOM_PREFIX, requireMedia: false, maxPeers: 5 }); // data channels only
         p2p.onRosterChange = handleRosterChange;
@@ -214,7 +219,9 @@ async function connect(asHost, code) {
         }
     };
 
-    await lk.connect(p2p.hostId, p2p.me.id, name);
+    // Media only connects once a second person is actually in the room —
+    // connects right away here if we joined an already-occupied room.
+    ensureMediaConnection();
 
     $("mediaBar").classList.remove("hidden");
     if (isHost()) $("startBattleBtn").classList.remove("hidden");
@@ -233,6 +240,39 @@ function handleRosterChange(roster) {
     }
     renderLobby();
     refreshTilesForRoster();
+    ensureMediaConnection();
+}
+
+/** Cams (and the media connection they ride on) only join once a second
+ *  person actually shows up — most sessions are one person alone in a
+ *  lobby, and there's no point burning media-server resources for that. */
+function ensureMediaConnection() {
+    if (!lk || !p2p) return;
+    const has2 = p2p.roster.length >= 2;
+    if (has2 && !lkConnected) {
+        lkConnected = true;
+        lk.connect(p2p.hostId, p2p.me.id, myName).catch((err) => lk.onError(err));
+    } else if (!has2 && lkConnected) {
+        lkConnected = false;
+        lk.disconnect();
+    }
+    syncCamPlaceholder();
+}
+
+function syncCamPlaceholder() {
+    const grid = activeGrid;
+    if (!grid) return;
+    let note = grid.querySelector(".cam-wait-note");
+    if (!lkConnected && tiles.size === 0) {
+        if (!note) {
+            note = document.createElement("p");
+            note.className = "muted cam-wait-note";
+            note.textContent = "📷 Cams turn on once a friend joins";
+            grid.appendChild(note);
+        }
+    } else if (note) {
+        note.remove();
+    }
 }
 
 function refreshTilesForRoster() {
